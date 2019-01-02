@@ -1,3 +1,4 @@
+import csv
 import math
 
 import pyglet
@@ -68,6 +69,13 @@ label_force = pyglet.text.Label(text='', font_size=18, color=color, x=10, y=SCRE
 
 labels = [label_x, label_ang, label_force]
 
+# data recorder so we can compare our results to our predictions
+f = open('data/invpend.csv', 'w')
+out = csv.writer(f)
+out.writerow(['time', 'x', 'theta'])
+currtime = 0.0
+record_data = False
+
 
 def draw_body(offset, body):
     for shape in body.shapes:
@@ -129,6 +137,12 @@ def simulate(_):
     ang = pend_body.angle
     angv = pend_body.angular_velocity
 
+    # dump our data so we can plot
+    if record_data:
+        global currtime
+        out.writerow([f"{currtime:0.4f}", f"{posx:0.3f}", f"{ang:0.3f}"])
+        currtime += dt
+
     # calculate our gain based on the current state
     gain = K[0] * posx + K[1] * velx + K[2] * ang + K[3] * angv
 
@@ -171,3 +185,6 @@ pyglet.clock.schedule_once(update_reference, 12, 0.2)
 pyglet.clock.schedule_once(update_reference, 17, 0.0)
 
 pyglet.app.run()
+
+# close the output file
+f.close()
