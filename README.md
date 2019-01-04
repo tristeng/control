@@ -10,7 +10,7 @@ It is highly recommended that you create a Python virtual environment before ins
 ```pip install pymunk pyglet```
 
 ### To run the notebooks:  
-```pip install numpy scipy matplotlib jupyter```
+```pip install numpy scipy matplotlib jupyter sympy```
 
 ## Running the Samples
 
