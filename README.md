@@ -30,6 +30,11 @@ few seconds while still keeping both pendulums stable in a vertical position.
 
 ```python dinvpend.py```
 
+#### Quadcopter in 2D space
+Controlling a quadcopter in 2D space. The simulation commands the quadcopter to several waypoints every few seconds.
+
+```python quadcopter2d.py```
+
 ### Notebooks
 Start Jupyter:  
 ```jupyter notebook``` and go to http://localhost:8888 and load the notebook you desire
