@@ -33,6 +33,14 @@ few seconds while still keeping both pendulums stable in a vertical position.
 #### Quadcopter in 2D space
 Controlling a quadcopter in 2D space. The simulation commands the quadcopter to several waypoints every few seconds.
 
+The trajectory is calculated using different trajectory generators: minimum snap, jerk, acceleration and velocity. 
+After each trajectory finishes, a couple seconds will pass before the quadcopter moves onto the next trajectory 
+generator. All the trajectories are plotted ahead of time using various shades of grey. The actual trajectory is 
+rendered in yellow. Trajectory points are rendered in red as small crosses.
+
+Change the points array for the desired waypoints, and update the average velocity to automatically calculate the 
+desired waypoint arrival times.
+
 ```python quadcopter2d.py```
 
 ### Notebooks

@@ -1,9 +1,25 @@
+import enum
+import logging
+
 import numpy as np
 import sympy as sp
 
 
+class TrajectoryType(enum.Enum):
+    VELOCITY = 2
+    ACCELERATION = 4
+    JERK = 6
+    SNAP = 8
+
+
 class MininumTrajectory:
-    def __init__(self, numcoeffs: int):
+    def __init__(self, trajtype: TrajectoryType):
+        numcoeffs = trajtype.value
+        logging.info(f'Creating minimum {trajtype.name} trajectory generator with {numcoeffs} coefficients')
+
+        if numcoeffs % 2 != 0:
+            raise ValueError('Number of coefficients must be divisible by 2!')
+
         self.numcoeffs = numcoeffs
 
         t = sp.symbols('t')
@@ -24,6 +40,13 @@ class MininumTrajectory:
         self.dims = None
 
     def coeffs_for_time(self, equations, time):
+        """
+        Returns a matrix where each row contains the coefficients of the input equations evaluated at time
+
+        :param equations: list of equations to evaluate against
+        :param time: the time to evaluate at
+        :return: matrix with number of rows equal to number of equations by number of coefficients
+        """
         retval = np.zeros((len(equations), self.numcoeffs))
 
         for ii, eq in enumerate(equations):
@@ -44,7 +67,15 @@ class MininumTrajectory:
             retval[ii] = list(reversed(coeffs))
         return retval
 
-    def generate(self, points, times):
+    def generate(self, points, times, numderivatives=2):
+        """
+        Solves the minimum trajectory for the given points and times and caches the trajectory and its requested time
+        derivates for later use
+
+        :param points: an ordered list of tuples represent points the trajectory will pass through
+        :param times: an ordered list of times corresponding to points, of when the trajectory should reach the point
+        :param numderivatives: the number of time derivatives to generate
+        """
         if len(points) != len(times) or len(points) < 2:
             raise ValueError('Points and times must be lists of equal length greater than 2')
 
@@ -53,23 +84,29 @@ class MininumTrajectory:
             if endtime <= starttime:
                 raise ValueError('Times must be ordered from smallest to largest and cannot overlap')
 
+        self.dims = len(points[0])
+        logging.info(f'Generating trajectory using {len(points)} waypoints - waypoints have {self.dims} dimensions.')
+        logging.info(f'Will generate {numderivatives} time derivatives as well as position.')
+
         self.times = np.array(times)
+
+        # TODO: need to handle cases where the times can get large - normalize the times
+        # e.g. if a time is 100 and this is a min snap, we will have a term like (100)**7
 
         n = self.numcoeffs * (len(points) - 1)
         A = np.zeros((n, n))
 
         # use the first point to figure out how many b vectors we need
-        self.dims = len(points[0])
         b = [np.zeros((n, 1)) for _ in range(self.dims)]
 
-        # fill in 3 equations for first segment - velocity, acceleration and jerk are all equal to 0 at start time
+        # fill in equations for first segment - time derivatives of position are all equal to 0 at start time
         nextrow = 0
-        numeqs = 3  # TODO - determine if we can calculate this
+        numeqs = int((self.numcoeffs - 2) / 2)
         equations = self.eqs[1:1+numeqs]
         A[nextrow:nextrow + numeqs, 0:self.numcoeffs] = self.coeffs_for_time(equations, times[0])
         nextrow += numeqs
 
-        # fill in 3 equations for last segment - velocity, acceleration and jerk are all equal to 0 at end time
+        # fill in equations for last segment - time derivatives of position are all equal to 0 at end time
         A[nextrow:nextrow + numeqs, n - self.numcoeffs:n] = self.coeffs_for_time(equations, times[-1])
         nextrow += numeqs
 
@@ -99,9 +136,8 @@ class MininumTrajectory:
         for idx in range(len(points) - 2):
             endt = times[idx + 1]
 
-            # fill in 6 equations for velocity, acceleration, jerk, snap, crackle and pop to ensure they are the same
-            # through the transition point evaluate both poly's at the end point
-            numeqs = 6  # TODO - determine if we can calculate this
+            # fill in required equations for time derivatives to ensure they are the same through the transition point
+            numeqs = self.numcoeffs - 2
             equations = self.eqs[1:1 + numeqs]
             col = idx * self.numcoeffs
             A[nextrow:nextrow + numeqs, col:col + self.numcoeffs] = self.coeffs_for_time(equations, endt)
@@ -115,7 +151,7 @@ class MininumTrajectory:
         x = [np.linalg.solve(A, b[ii]) for ii in range(len(b))]
 
         # polys will have rows corresponding to segments, columns corresponding to the point dimensions, and 3rd dim
-        # will contain the pos, vel, and acc polys
+        # will contain the position poly and the number of requested time derivatives
         self.polys = []
         t = sp.symbols('t')
         for ii in range(len(points)-1):
@@ -124,17 +160,19 @@ class MininumTrajectory:
             for jj in range(len(x)):
                 layer = [sp.Poly(reversed(x[jj][offset:offset+self.numcoeffs].transpose()[0]), t)]
 
-                # append on time derivatives up to acceleration
-                for kk in range(1, 3):
+                # append on requested number of time derivatives as well
+                for kk in range(1, 1+numderivatives):
                     # take the time derivative of the previous poly
                     layer.append(layer[kk-1].diff(t))
                 col.append(layer)
             self.polys.append(col)
 
+        logging.info(f'Finished trajectory generation using {len(points)} waypoints.')
+
     def getvalues(self, time):
         """
         Returns an array where rows corresponds to the number of dimensions in points, and columns corresponds to the
-        position, velocity, and acceleration for the given time
+        time derivatives for the given time
 
         :param time: the time to evaluate the polys at
         :return: nump array
@@ -161,8 +199,3 @@ class MininumTrajectory:
                 retval[jj][kk] = self.polys[idx][jj][kk].eval(time)
 
         return retval
-
-
-class MinimumSnapTrajectory(MininumTrajectory):
-    def __init__(self):
-        super().__init__(8)
