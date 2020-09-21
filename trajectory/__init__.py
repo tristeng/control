@@ -38,6 +38,7 @@ class MininumTrajectory:
         self.times = None
         self.polys = None
         self.dims = None
+        self.numderivatives = None
 
     def coeffs_for_time(self, equations, time):
         """
@@ -87,11 +88,9 @@ class MininumTrajectory:
         self.dims = len(points[0])
         logging.info(f'Generating trajectory using {len(points)} waypoints - waypoints have {self.dims} dimensions.')
         logging.info(f'Will generate {numderivatives} time derivatives as well as position.')
+        self.numderivatives = numderivatives
 
         self.times = np.array(times)
-
-        # TODO: need to handle cases where the times can get large - normalize the times
-        # e.g. if a time is 100 and this is a min snap, we will have a term like (100)**7
 
         n = self.numcoeffs * (len(points) - 1)
         A = np.zeros((n, n))
@@ -193,7 +192,7 @@ class MininumTrajectory:
         if idx >= len(self.polys):
             idx = len(self.polys) - 1
 
-        retval = np.zeros((self.dims, 3))
+        retval = np.zeros((self.dims, self.numderivatives+1))
         for jj in range(retval.shape[0]):
             for kk in range(retval.shape[1]):
                 retval[jj][kk] = self.polys[idx][jj][kk].eval(time)
