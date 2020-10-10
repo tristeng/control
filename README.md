@@ -43,6 +43,10 @@ desired waypoint arrival times.
 
 ```python quadcopter2d.py```
 
+#### Quadcopter in 3D space
+At this time, there is only a notebook deriving the equations of motion and some simple simulations using PD control. 
+In future I hope to add a 3D simulation that uses a minimum snap trajectory generator and PID control.
+
 ### Notebooks
 Start Jupyter:  
 ```jupyter notebook``` and go to http://localhost:8888 and load the notebook you desire
